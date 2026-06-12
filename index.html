@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>StarryOS - Advanced Workspace Environment</title>
+  <style>
+    /* Global Desktop Canvas setup */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Courier New', Courier, monospace;
+      background-image: url('bg.png'); 
+      background-color: #121214;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      position: relative;
+      user-select: none;
+      transition: background-image 0.5s ease-in-out;
+    }
+
+    /* --- BOOT SPLASH SCREEN STYLES --- */
+    #splashScreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #0a0a0c;
+      z-index: 9999;
+      display: flex;
+      padding: 40px;
+      box-sizing: border-box;
+      color: #00ff66;
+      font-family: 'Courier New', Courier, monospace;
+      transition: opacity 0.8s ease, visibility 0.8s;
+    }
+
+    .splash-left {
+      flex: 1;
+      overflow-hidden: hidden;
+      border-right: 1px solid #222;
+      padding-right: 20px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .splash-right {
+      flex: 1;
+      padding-left: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      margin: 15px 0;
+      font-size: 1.2rem;
+      opacity: 0.3;
+      transform: translateX(-20px);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      color: #ffffff;
+    }
+
+    .checklist-item.active {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .checklist-item.done {
+      color: #00ff66;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #fff;
+      margin-right: 15px;
+      border-radius: 4px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .checklist-item.done .checkbox {
+      border-color: #00ff66;
+      background: rgba(0, 255, 102, 0.2);
+    }
+
+    .checklist-item.done .checkbox::after {
+      content: '✓';
+      position: absolute;
+      top: -3px;
+      left: 3px;
+      font-size: 16px;
+      color: #00ff66;
+    }
+
+    /* System Top Navigation Bar */
+    .top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      backdrop-filter: blur(12px);
+      background-color: rgba(0, 0, 0, 0.45);
+      color: #fff;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+      box-sizing: border-box;
+      padding: 6px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .system-title {
+      margin: 0;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .clock-display {
+      margin: 0;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+
+    /* --- THE DOCK CONTAINER --- */
+    .desktop-dock-container {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      box-sizing: border-box;
+      padding: 0 30px;
+      z-index: 1000;
+      pointer-events: none;
+      justify-content: center; 
+      transition: justify-content 0.3s ease;
+    }
+
+    .desktop-dock {
+      display: flex;
+      flex-direction: row; 
+      gap: 15px;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(20px);
+      padding: 10px 15px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      pointer-events: auto; 
+    }
+
+    /* Desktop Shortcut Component */
+    .app-icon {
+      text-align: center;
+      width: 75px;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 12px;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .app-icon:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(1.15) translateY(-5px); 
+    }
+
+    .app-icon img {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: block;
+      margin: 0 auto 4px auto;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      object-fit: cover;
+    }
+
+    .app-icon p {
+      margin: 0;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: bold;
+      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Modular Window System Layering Architecture */
+    .window {
+      position: absolute;
+      border: solid 1px #444;
+      width: 520px;
+      max-width: 90vw;
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 10;
+      
+      /* Fluid Opening Window Animation Scale */
+      transform: scale(0.85);
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.15), opacity 0.25s ease;
+    }
+
+    .window.open-active {
+      transform: scale(1) !important;
+      opacity: 1 !important;
+    }
+
+    /* Header Drag Title-Bar handle styling */
+    .windowheader {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #e5e5e5;
+      border-bottom: solid 1px #ccc;
+      padding: 10px 0;
+      cursor: grab;
+    }
+
+    .windowheader:active {
+      cursor: grabbing;
+    }
+
+    .headertext {
+      margin: 0;
+      font-weight: bold;
+      color: #222;
+      font-size: 0.85rem;
+    }
+
+    /* Apple-Style Circular Close Window Triggers */
+    .closebutton {
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      background-color: #EC6B5E;
+      border-radius: 50%;
+      border: solid 1px rgba(0, 0, 0, 0.2);
+      margin-left: 12px;
+    }
+
+    .closebutton:hover {
+      background-color: #ff5f52;
+    }
+
+    /* System Window Workspace Margins */
+    .window-content {
+      padding: 20px;
+      color: #222;
+      box-sizing: border-box;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .window-content h2 {
+      margin-top: 0;
+      font-size: 1.4rem;
+      color: #111;
+    }
+
+    /* DYNAMIC NOTEPAD APPLICATION WINDOW */
+    .notepad-textarea {
+      width: 100%;
+      height: 180px;
+      padding: 12px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #fdfae6; 
+      font-family: inherit;
+      font-size: 0.85rem;
+      color: #333;
+      resize: none;
+      outline: none;
+    }
+
+    /* --- TERMINAL STYLING CONFIGS --- */
+    .terminal-container {
+      background-color: #0f0f11;
+      color: #00ff66;
+      font-family: monospace;
+      padding: 12px;
+      border-radius: 8px;
+      height: 220px;
+      overflow-y: auto;
+      box-sizing: border-box;
+      text-align: left;
+    }
+
+    .terminal-log {
+      white-space: pre-wrap;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
+
+    .terminal-input-line {
+      display: flex;
+      align-items: center;
+    }
+
+    .terminal-prompt {
+      margin-right: 8px;
+      font-weight: bold;
+    }
+
+    .terminal-field {
+      background: transparent;
+      border: none;
+      color: #00ff66;
+      font-family: monospace;
+      font-size: 0.85rem;
+      flex: 1;
+      outline: none;
+    }
+
+    /* WALLPAPER CONFIG PANEL SELECTION */
+    .wallpaper-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .wallpaper-thumb {
+      width: 100%;
+      height: 70px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      object-fit: cover;
+      transition: transform 0.2s;
+    }
+
+    .wallpaper-thumb:hover {
+      transform: scale(1.05);
+      border-color: #0076ff;
+    }
+
+    /* Advanced App Custom Controls Grid UI */
+    .interactive-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .grid-card {
+      background: #f7f7f9;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .grid-card:hover {
+      background: #eef2f7;
+    }
+
+    .grid-card h4 {
+      margin: 0 0 4px 0;
+      color: #0076ff;
+    }
+
+    .grid-card p {
+      margin: 0;
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .dock-config-bar {
+      margin-top: 15px;
+      padding-top: 12px;
+      border-top: 1px dashed #ccc;
+    }
+
+    .dock-btn {
+      font-family: inherit;
+      background: #333;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.75rem;
+      margin-right: 5px;
+    }
+
+    .dock-btn:hover {
+      background: #0076ff;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="splashScreen">
+    <div class="splash-left" id="terminalBootLog"></div>
+    <div class="splash-right">
+      <div class="checklist-item" id="chk1"><div class="checkbox"></div>Initializing Kernels...</div>
+      <div class="checklist-item" id="chk2"><div class="checkbox"></div>Mounting Graphical Assets...</div>
+      <div class="checklist-item" id="chk3"><div class="checkbox"></div>Configuring Desktop Dock UI...</div>
+      <div class="checklist-item" id="chk4"><div class="checkbox"></div>Launching StarryOS Runtime...</div>
+    </div>
+  </div>
+
+  <div class="top-bar">
+    <p class="system-title">🌌 StarryOS Workspace v3.0</p>
+    <p id="timeElement" class="clock-display">Loading Network Time...</p>
+  </div>
+
+  <div class="desktop-dock-container" id="systemDockContainer">
+    <div class="desktop-dock">
+      <div class="app-icon" id="welcomeIcon">
+        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828765.png" alt="Sys">
+        <p>Dashboard</p>
+      </div>
+      <div class="app-icon" id="notesIcon">
+        <img src="https://cdn-icons-png.flaticon.com/512/3209/3209265.png" alt="Notes">
+        <p>Notepad</p>
+      </div>
+      <div class="app-icon" id="terminalIcon">
+        <img src="https://cdn-icons-png.flaticon.com/512/906/906343.png" alt="Terminal">
+        <p>Terminal</p>
+      </div>
+      <div class="app-icon" id="settingsIcon">
+        <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" alt="Settings">
+        <p>Settings</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="window" id="welcome" style="top: 15%; left: 20%; display: none;">
+    <div class="windowheader" id="welcomeheader">
+      <div class="closebutton" id="welcomeclose"></div>
+      <p class="headertext">Welcome Dashboard</p>
+      <div style="width: 14px; margin-right: 12px;"></div>
+    </div>
+    <div class="window-content">
+      <h2>Welcome to my OS!</h2>
+      <p>Click on one of the segments below to display updated metrics:</p>
+      <div class="interactive-grid">
+        <div class="grid-card" onclick="alert('Project Stack Activated: Managing 12 repositories.')">
+          <h4>🚀 My Projects</h4>
+          <p>Explore built repositories, codespaces pipelines, and web designs.</p>
+        </div>
+        <div class="grid-card" onclick="alert('Hobbies Matrix: Music, cooking pizza, and systems hacking.')">
+          <h4>🎨 Hobbies</h4>
+          <p>Discover things I dive deep into outside terminal blocks.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="window" id="notes" style="top: 20%; left: 30%; display: none;">
+    <div class="windowheader" id="notesheader">
+      <div class="closebutton" id="notesclose"></div>
+      <p class="headertext">Notepad.exe</p>
+      <div style="width: 14px; margin-right: 12px;"></div>
+    </div>
+    <div class="window-content">
+      <h2>System Notebook</h2>
+      <textarea class="notepad-textarea txt-input" placeholder="Write persistent session notes directly inside this card block..."></textarea>
+    </div>
+  </div>
+
+  <div class="window" id="terminal" style="top: 25%; left: 40%; display: none;">
+    <div class="windowheader" id="terminalheader">
+      <div class="closebutton" id="terminalclose"></div>
+      <p class="headertext">Root Terminal Terminal Console</p>
+      <div style="width: 14px; margin-right: 12px;"></div>
+    </div>
+    <div class="window-content" style="background-color: #0f0f11;">
+      <div class="terminal-container" onclick="document.getElementById('termField').focus()">
+        <div class="terminal-log" id="termLog">StarryOS Virtual Console System v3.0&#10;Type 'help' to view available system routines.&#10;</div>
+        <div class="terminal-input-line">
+          <span class="terminal-prompt">user@starryOS:~$&nbsp;</span>
+          <input type="text" id="termField" class="terminal-field txt-input" autocomplete="off" autofocus>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="window" id="settings" style="top: 30%; left: 48%; display: none;">
+    <div class="windowheader" id="settingsheader">
+      <div class="closebutton" id="settingsclose"></div>
+      <p class="headertext">System Control Panel Settings</p>
+      <div style="width: 14px; margin-right: 12px;"></div>
+    </div>
+    <div class="window-content">
+      <h2>Desktop Settings Panel</h2>
+      <p style="font-weight: bold; margin-bottom: 5px;">🖼️ Desktop Wallpaper Engine Source:</p>
+      <div class="wallpaper-grid">
+        <img class="wallpaper-thumb" src="https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800" onclick="changeBg(this.src)" alt="Space">
+        <img class="wallpaper-thumb" src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800" onclick="changeBg(this.src)" alt="Gradient">
+        <img class="wallpaper-thumb" src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800" onclick="changeBg(this.src)" alt="Cyber">
+      </div>
+
+      <div class="dock-config-bar">
+        <p style="font-weight: bold; margin: 0 0 8px 0;">⚙️ Dock Workspace Configuration alignment:</p>
+        <button class="dock-btn" onclick="alignDock('flex-start')">Left Dock</button>
+        <button class="dock-btn" onclick="alignDock('center')">Center Dock</button>
+        <button class="dock-btn" onclick="alignDock('flex-end')">Right Dock</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. DYNAMIC SYSTEM BOOT ENGINE ANIMATION SYSTEM ---
+    window.addEventListener("DOMContentLoaded", function() {
+      var bootLines = [
+        "STARRY OS ROM COMPILATION V3.026",
+        "LOADING CPU CORE SUBSYSTEM CONFIGURATIONS...",
+        "STATUS OK // ALL HARDWARE IDENTIFIED CORRECTION",
+        "MOUNTING MEMORY FILESYSTEM STACKS VIA CACHE...",
+        "FETCHING GRAPHICAL DESKTOP MATRIX OBJECT LAYOUTS...",
+        "EXTRACTING DOCK ASSETS / APPLICATION SHORTCUTS...",
+        "CONNECTING PROTOCOL NETWORKS SYNC CLOCK...",
+        "BOOT SEQUENCE COMPLETION STATUS SUCCESFUL.",
+        "LAUNCHING STARRYOS INTERACTIVE DESKTOP INTERFACE NOW..."
+      ];
+      
+      var leftLog = document.getElementById("terminalBootLog");
+      var currentLineIdx = 0;
+
+      function printBootTerminal() {
+        if (currentLineIdx < bootLines.length) {
+          leftLog.innerHTML += "> " + bootLines[currentLineIdx] + "<br><br>";
+          currentLineIdx++;
+          setTimeout(printBootTerminal, 280);
+        }
+      }
+      printBootTerminal();
+
+      // Fluid Right Checkbox Checkmark ticking sequence
+      setTimeout(function() { document.getElementById("chk1").classList.add("active"); }, 300);
+      setTimeout(function() { document.getElementById("chk1").classList.add("done"); document.getElementById("chk2").classList.add("active"); }, 900);
+      setTimeout(function() { document.getElementById("chk2").classList.add("done"); document.getElementById("chk3").classList.add("active"); }, 1600);
+      setTimeout(function() { document.getElementById("chk3").classList.add("done"); document.getElementById("chk4").classList.add("active"); }, 2200);
+      setTimeout(function() { document.getElementById("chk4").classList.add("done"); }, 2800);
+
+      // Fade out complete splash component smoothly to display OS workspace
+      setTimeout(function() {
+        var splash = document.getElementById("splashScreen");
+        splash.style.opacity = "0";
+        setTimeout(function() { 
+          splash.style.visibility = "hidden"; 
+          // Open default dashboard application component instantly with scale animation frame
+          openWindowInstance(document.getElementById("welcome"));
+        }, 800);
+      }, 3400);
+    });
+
+    // --- 2. ENVIRONMENT SETTINGS ENGINE FUNCTIONAL ROUTINES ---
+    function changeBg(imageUrl) {
+      document.body.style.backgroundImage = "url('" + imageUrl + "')";
+    }
+
+    function alignDock(positionStyle) {
+      document.getElementById("systemDockContainer").style.justifyContent = positionStyle;
+    }
+
+    // --- 3. LIVE RUNTIME WALL CLOCK REFRESH MATRIX ---
+    setInterval(function () {
+      document.querySelector("#timeElement").innerHTML = new Date().toLocaleString();
+    }, 1000);
+
+    // --- 4. SECURE WORKING TERMINAL LOGIC EMULATION MATRIX ---
+    var termField = document.getElementById("termField");
+    var termLog = document.getElementById("termLog");
+
+    termField.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        var inputVal = termField.value.trim().toLowerCase();
+        termLog.innerHTML += "user@starryOS:~$ " + termField.value + "&#10;";
+        
+        if (inputVal === "help") {
+          termLog.innerHTML += "Available protocols: help, clear, date, pizza, theme&#10;";
+        } else if (inputVal === "clear") {
+          termLog.innerHTML = "";
+        } else if (inputVal === "date") {
+          termLog.innerHTML += new Date().toString() + "&#10;";
+        } else if (inputVal === "pizza") {
+          termLog.innerHTML += "🍕 Pizza mode configuration active standard override. Enjoy your custom workspace.&#10;";
+        } else if (inputVal === "theme") {
+          termLog.innerHTML += "Open settings window to adjust graphical desktop arrays.&#10;";
+        } else if (inputVal !== "") {
+          termLog.innerHTML += "Command not found: '" + inputVal + "'. Type 'help' for support.&#10;";
+        }
+        
+        termField.value = "";
+        document.querySelector(".terminal-container").scrollTop = document.querySelector(".terminal-container").scrollHeight;
+      }
+    });
+
+    // --- 5. WINDOW MANAGEMENT INTERACTIVE SCHEDULER ENGINE ---
+    function initializeWindowInstance(appPrefix) {
+      var targetWindow = document.querySelector("#" + appPrefix);
+      var closeTrigger = document.querySelector("#" + appPrefix + "close");
+      var openShortcut = document.querySelector("#" + appPrefix + "Icon");
+
+      closeTrigger.addEventListener("click", function(e) {
+        e.stopPropagation();
+        targetWindow.classList.remove("open-active");
+        setTimeout(function() { targetWindow.style.display = "none"; }, 250);
+      });
+
+      openShortcut.addEventListener("click", function(e) {
+        e.stopPropagation();
+        openWindowInstance(targetWindow);
+      });
+
+      targetWindow.addEventListener("mousedown", function() {
+        bringToFront(targetWindow);
+      });
+
+      attachDragCalculations(targetWindow);
+    }
+
+    function openWindowInstance(element) {
+      element.style.display = "flex";
+      // Tiny layout tick lets CSS display flex register before execution scale class appends
+      setTimeout(function() {
+        element.classList.add("open-active");
+      }, 15);
+      bringToFront(element);
+    }
+
+    var topZIndexValue = 10;
+    function bringToFront(element) {
+      topZIndexValue++;
+      element.style.zIndex = topZIndexValue;
+    }
+
+    // --- 6. SECURE AXIS DRAG DISPLACEMENT CALCULATOR ENGINE ---
+    function attachDragCalculations(element) {
+      var initialX = 0, initialY = 0, currentX = 0, currentY = 0;
+      var titleHeaderHandle = document.getElementById(element.id + "header");
+
+      if (titleHeaderHandle) {
+        titleHeaderHandle.onmousedown = initiateMoveSequence;
+      } else {
+        element.onmousedown = initiateMoveSequence;
+      }
+
+      function initiateMoveSequence(e) {
+        e = e || window.event;
+        if (e.target.classList.contains('txt-input') || e.target.classList.contains('closebutton') || e.target.classList.contains('dock-btn') || e.target.classList.contains('wallpaper-thumb')) return;
+        
+        e.preventDefault();
+        initialX = e.clientX;
+        initialY = e.clientY;
+        
+        document.onmouseup = terminateMoveSequence;
+        document.onmousemove = computeDisplacement;
+      }
+
+      function computeDisplacement(e) {
+        e = e || window.event;
+        e.preventDefault();
+        
+        currentX = initialX - e.clientX;
+        currentY = initialY - e.clientY;
+        initialX = e.clientX;
+        initialY = e.clientY;
+
+        if (element.style.transform && element.style.transform.includes("translate")) {
+          element.style.transform = "none";
+          element.style.top = (element.offsetTop - (element.offsetHeight / 2)) + "px";
+          element.style.left = (element.offsetLeft - (element.offsetWidth / 2)) + "px";
+        }
+
+        element.style.top = (element.offsetTop - currentY) + "px";
+        element.style.left = (element.offsetLeft - currentX) + "px";
+      }
+
+      function terminateMoveSequence() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+      }
+    }
+
+    // RUNTIME WORKSPACE SYSTEM INITIALIZATION START CHANNELS
+    initializeWindowInstance("welcome");
+    initializeWindowInstance("notes");
+    initializeWindowInstance("terminal");
+    initializeWindowInstance("settings");
+  </script>
+</body>
+</html>
